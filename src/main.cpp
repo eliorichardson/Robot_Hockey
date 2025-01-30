@@ -1,0 +1,134 @@
+#include <XboxSeriesXControllerESP32_asukiaaa.hpp>
+#include "esp_task_wdt.h"
+
+// Motor driver pin definitions
+#define Pin_frontL_f 5
+#define Pin_frontL_b 18
+#define Pin_frontR_f 4
+#define Pin_frontR_b 15
+#define Pin_backL_f 19
+#define Pin_backL_b 21
+#define Pin_backR_f 17
+#define Pin_backR_b 16
+
+
+
+#define WDT_TIMEOUT 10  // Watchdog timeout in seconds
+
+// Xbox controller MAC address (replace with your actual address)
+XboxSeriesXControllerESP32_asukiaaa::Core xboxController("EC:83:50:05:71:92");
+
+// PWM Setup: Assign a unique channel per pin
+void setupPWM() {
+  Serial.println("Initializing PWM...");
+
+  const int pwmFrequency = 5000;  // 5 kHz
+  const int pwmResolution = 8;    // 8-bit resolution
+
+  // Assigning a separate LEDC channel per motor pin
+  ledcSetup(0, pwmFrequency, pwmResolution);  ledcAttachPin(Pin_frontL_f, 0);
+  ledcSetup(1, pwmFrequency, pwmResolution);  ledcAttachPin(Pin_frontL_b, 1);
+  ledcSetup(2, pwmFrequency, pwmResolution);  ledcAttachPin(Pin_frontR_f, 2);
+  ledcSetup(3, pwmFrequency, pwmResolution);  ledcAttachPin(Pin_frontR_b, 3);
+  ledcSetup(4, pwmFrequency, pwmResolution);  ledcAttachPin(Pin_backL_f, 4);
+  ledcSetup(5, pwmFrequency, pwmResolution);  ledcAttachPin(Pin_backL_b, 5);
+  ledcSetup(6, pwmFrequency, pwmResolution);  ledcAttachPin(Pin_backR_f, 6);
+  ledcSetup(7, pwmFrequency, pwmResolution);  ledcAttachPin(Pin_backR_b, 7);
+
+  Serial.println("PWM Initialized Successfully");
+}
+
+// Function to control motor speed and direction
+void controlMotor(int channel_f, int channel_b, float speed) {
+  int pwmSpeed = abs(speed * 255);  // Convert -1 to 1 range into 0 to 255
+
+  if (speed > 0) {
+    ledcWrite(channel_f, pwmSpeed);  // Forward
+    ledcWrite(channel_b, 0);
+  } else {
+    ledcWrite(channel_f, 0);
+    ledcWrite(channel_b, pwmSpeed);  // Backward
+  }
+}
+
+// Xbox controller handling task
+void xboxControllerTask(void *pvParameters) {
+  while (true) {
+    xboxController.onLoop();  // Handle Bluetooth input
+    vTaskDelay(10 / portTICK_PERIOD_MS);  // Short delay for stability
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  Serial.println("Starting ESP32 Controller");
+
+  delay(500);
+
+  // Initialize PWM
+  setupPWM();
+
+  // Initialize watchdog timer
+  esp_task_wdt_init(WDT_TIMEOUT, true);
+  esp_task_wdt_add(NULL);
+
+  // Start Xbox controller
+  xboxController.begin();
+  Serial.println("Controller initialized");
+
+  // Create a FreeRTOS task for handling Xbox controller
+  xTaskCreatePinnedToCore(
+    xboxControllerTask,  // Task function
+    "XboxControllerTask", // Task name
+    4096,                 // Stack size
+    NULL,                 // Parameters
+    1,                    // Priority
+    NULL,                 // Task handle
+    0                     // Run on Core 0
+  );
+}
+
+void loop() {
+  esp_task_wdt_reset();  // Reset watchdog timer
+
+  if (xboxController.isConnected()) {
+    float lx_axis = ((float)xboxController.xboxNotif.joyLHori / 32767.0) - 1 ; // Left stick horizontal
+    float ly_axis = ((float)xboxController.xboxNotif.joyLVert / 32767.0) - 1; // Left stick vertical
+    float rx_axis = ((float)xboxController.xboxNotif.joyRHori / 32767.0) - 1; // Right stick horizontal (rotation)
+
+    if (abs(lx_axis) < 0.15) lx_axis = 0;
+    if (abs(ly_axis) < 0.15) ly_axis = 0;
+    if (abs(rx_axis) < 0.15) rx_axis = 0;
+    
+    Serial.print("LX: "); Serial.print(lx_axis);
+    Serial.print(", LY: "); Serial.print(ly_axis);
+    Serial.print(", RX: "); Serial.println(rx_axis);
+
+
+    // X-drive motor calculations
+    float frontL = ly_axis - lx_axis - rx_axis; // Front-left wheel
+    float frontR = ly_axis + lx_axis + rx_axis; // Front-right wheel
+    float backL = ly_axis + lx_axis - rx_axis; // Back-left wheel
+    float backR = ly_axis - lx_axis + rx_axis; // Back-right wheel
+
+    // Constrain values to -1.0 to 1.0
+    frontL = constrain(frontL, -1.0, 1.0);
+    frontR = constrain(frontR, -1.0, 1.0);
+    backL = constrain(backL, -1.0, 1.0);
+    backR = constrain(backR, -1.0, 1.0);
+
+    // Drive motors using correct channels
+    controlMotor(0, 1, frontL);
+    controlMotor(2, 3, frontR);
+    controlMotor(4, 5, backL);
+    controlMotor(6, 7, backR);
+  } else {
+    Serial.println("Controller not connected");
+    controlMotor(0, 1, 0);
+    controlMotor(2, 3, 0);
+    controlMotor(4, 5, 0);
+    controlMotor(6, 7, 0);
+  }
+
+  vTaskDelay(20 / portTICK_PERIOD_MS);  // Short delay for stability
+}
