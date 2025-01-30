@@ -2,16 +2,18 @@
 #include "esp_task_wdt.h"
 
 // Motor driver pin definitions
-#define Pin_frontL_f 5
-#define Pin_frontL_b 18
+#define Pin_frontL_f 18
+#define Pin_frontL_b 5
 #define Pin_frontR_f 4
 #define Pin_frontR_b 15
-#define Pin_backL_f 19
-#define Pin_backL_b 21
-#define Pin_backR_f 17
-#define Pin_backR_b 16
+#define Pin_backL_f 21
+#define Pin_backL_b 19
+#define Pin_backR_f 16
+#define Pin_backR_b 17
 
-
+#define Intake_motor 13
+#define Intake_motor2 14
+#define Shooter_Pin 12
 
 #define WDT_TIMEOUT 10  // Watchdog timeout in seconds
 
@@ -65,6 +67,10 @@ void setup() {
 
   delay(500);
 
+  pinMode(Intake_motor, OUTPUT);
+  pinMode(Intake_motor2, OUTPUT);
+  pinMode(Shooter_Pin, OUTPUT);
+
   // Initialize PWM
   setupPWM();
 
@@ -96,13 +102,28 @@ void loop() {
     float ly_axis = ((float)xboxController.xboxNotif.joyLVert / 32767.0) - 1; // Left stick vertical
     float rx_axis = ((float)xboxController.xboxNotif.joyRHori / 32767.0) - 1; // Right stick horizontal (rotation)
 
+    float lt_axis = ((float)xboxController.xboxNotif.trigLT / 255.0); // Left trigger
+
+    if (xboxController.xboxNotif.btnRB) {
+      digitalWrite(Shooter_Pin, HIGH);
+    } else {
+      digitalWrite(Shooter_Pin, LOW);
+    }
+
+    if (lt_axis > 1) {
+      digitalWrite(Intake_motor, HIGH);
+    } else {
+      digitalWrite(Intake_motor, LOW);
+    }
+
     if (abs(lx_axis) < 0.15) lx_axis = 0;
     if (abs(ly_axis) < 0.15) ly_axis = 0;
     if (abs(rx_axis) < 0.15) rx_axis = 0;
     
     Serial.print("LX: "); Serial.print(lx_axis);
     Serial.print(", LY: "); Serial.print(ly_axis);
-    Serial.print(", RX: "); Serial.println(rx_axis);
+    Serial.print(", RX: "); Serial.print(rx_axis);
+    Serial.print(", LT: "); Serial.println(lt_axis);
 
 
     // X-drive motor calculations
