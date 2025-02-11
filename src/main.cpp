@@ -1,5 +1,7 @@
 #include <XboxSeriesXControllerESP32_asukiaaa.hpp>
 #include "esp_task_wdt.h"
+//#include "FastLED.h"
+//#include "main.h"
 
 // Motor driver pin definitions
 #define Pin_frontL_f 18
@@ -12,16 +14,27 @@
 #define Pin_backR_b 17
 
 #define Intake_motor 13
-#define Intake_motor2 14
+#define Intake_motor2 27
 #define Shooter_Pin 12
+#define servoPin 14
 
 #define WDT_TIMEOUT 10  // Watchdog timeout in seconds
+
+#define LED_PIN 23
+#define NUM_LEDS 30
 
 // Xbox controller MAC address (replace with your actual address)
 XboxSeriesXControllerESP32_asukiaaa::Core xboxController("EC:83:50:05:71:92");
 
+//EC:83:50:05:71:92 for xbox one controller
+//0C:35:26:C1:46:6E for xbox series x controller galaxy purple
+
+//CRGB leds[NUM_LEDS];
+
 // PWM Setup: Assign a unique channel per pin
 void setupPWM() {
+  //FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS); 
+
   Serial.println("Initializing PWM...");
 
   const int pwmFrequency = 5000;  // 5 kHz
@@ -100,31 +113,47 @@ void loop() {
   if (xboxController.isConnected()) {
     float lx_axis = ((float)xboxController.xboxNotif.joyLHori / 32767.0) - 1 ; // Left stick horizontal
     float ly_axis = ((float)xboxController.xboxNotif.joyLVert / 32767.0) - 1; // Left stick vertical
-    float rx_axis = ((float)xboxController.xboxNotif.joyRHori / 32767.0) - 1; // Right stick horizontal (rotation)
+    float rx_axis = (((float)xboxController.xboxNotif.joyRHori / 32767.0) - 1) * 0.35; // Right stick horizontal (rotation)
 
     float lt_axis = ((float)xboxController.xboxNotif.trigLT / 255.0); // Left trigger
+    float rt_axis = ((float)xboxController.xboxNotif.trigRT / 255.0); // Right trigger
 
-    if (xboxController.xboxNotif.btnRB) {
+    if (rt_axis > 1) {
+      ledcWrite(8, 255);
+      digitalWrite(Intake_motor, LOW);
       digitalWrite(Shooter_Pin, HIGH);
     } else {
-      digitalWrite(Shooter_Pin, LOW);
+      if (xboxController.xboxNotif.btnRB) {
+        digitalWrite(Shooter_Pin, HIGH);
+      } else {
+        digitalWrite(Shooter_Pin, LOW);
+      }
+
+      if (lt_axis > 1) {
+        digitalWrite(Intake_motor, HIGH);
+      } else {
+        digitalWrite(Intake_motor, LOW);
+      }
+
+      if (xboxController.xboxNotif.btnLB) {
+        digitalWrite(servoPin, HIGH);
+      } else {
+        digitalWrite(servoPin, LOW);
+      }
+
+      //lightchase_update();
     }
 
-    if (lt_axis > 1) {
-      digitalWrite(Intake_motor, HIGH);
-    } else {
-      digitalWrite(Intake_motor, LOW);
-    }
-
+    //deadzones
     if (abs(lx_axis) < 0.15) lx_axis = 0;
     if (abs(ly_axis) < 0.15) ly_axis = 0;
-    if (abs(rx_axis) < 0.15) rx_axis = 0;
+    if (abs(rx_axis) < 0.05) rx_axis = 0;
     
     Serial.print("LX: "); Serial.print(lx_axis);
     Serial.print(", LY: "); Serial.print(ly_axis);
     Serial.print(", RX: "); Serial.print(rx_axis);
     Serial.print(", LT: "); Serial.println(lt_axis);
-
+    Serial.print(", RT: "); Serial.println(rt_axis);
 
     // X-drive motor calculations
     float frontL = ly_axis - lx_axis - rx_axis; // Front-left wheel
@@ -143,13 +172,24 @@ void loop() {
     controlMotor(2, 3, frontR);
     controlMotor(4, 5, backL);
     controlMotor(6, 7, backR);
+
   } else {
+    // for (int i = 0; i < NUM_LEDS; i++) {
+    //   leds[i] = CRGB::Red;
+    // } FastLED.show();
+
     Serial.println("Controller not connected");
     controlMotor(0, 1, 0);
     controlMotor(2, 3, 0);
     controlMotor(4, 5, 0);
     controlMotor(6, 7, 0);
-  }
+    delay(250);
 
+    // for (int i = 0; i < NUM_LEDS; i++) {
+    //   leds[i] = CRGB::Black;
+    // } FastLED.show();
+
+    delay(250);
+  }
   vTaskDelay(20 / portTICK_PERIOD_MS);  // Short delay for stability
 }
