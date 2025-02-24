@@ -1,6 +1,7 @@
 #include <XboxSeriesXControllerESP32_asukiaaa.hpp>
 #include "esp_task_wdt.h"
 #include "FastLED.h"
+#include "PID_v1.h"
 
 // Motor driver pin definitions
 #define Pin_frontL_f 18
