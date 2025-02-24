@@ -1,7 +1,6 @@
 #include <XboxSeriesXControllerESP32_asukiaaa.hpp>
 #include "esp_task_wdt.h"
-//#include "FastLED.h"
-//#include "main.h"
+#include "FastLED.h"
 
 // Motor driver pin definitions
 #define Pin_frontL_f 18
@@ -23,13 +22,16 @@
 #define LED_PIN 23
 #define NUM_LEDS 30
 
+int lightchase_last_update = 0;
+int lightchase_update_interval = 100;
+
 // Xbox controller MAC address (replace with your actual address)
-XboxSeriesXControllerESP32_asukiaaa::Core xboxController("EC:83:50:05:71:92");
+XboxSeriesXControllerESP32_asukiaaa::Core xboxController("3C:FA:06:33:53:CE");
 
 //EC:83:50:05:71:92 for xbox one controller
 //0C:35:26:C1:46:6E for xbox series x controller galaxy purple
 
-//CRGB leds[NUM_LEDS];
+CRGB leds[NUM_LEDS];
 
 // PWM Setup: Assign a unique channel per pin
 void setupPWM() {
@@ -72,6 +74,28 @@ void xboxControllerTask(void *pvParameters) {
     xboxController.onLoop();  // Handle Bluetooth input
     vTaskDelay(10 / portTICK_PERIOD_MS);  // Short delay for stability
   }
+}
+
+void lightchase_update() {
+
+  // Update the light chase pattern
+  if (millis() - lightchase_last_update > lightchase_update_interval) {
+      lightchase_last_update = millis();
+  
+      // Shift the light chase pattern
+      for (int i = 0; i < NUM_LEDS; i++) {
+          if (i > 0) {
+              leds[i-1] = CRGB::Black;
+          }
+       
+          leds[i] = CRGB::Green;
+      
+          if (i == 0) {
+              leds[0] = CRGB::Black;
+          }
+      }
+  }
+
 }
 
 void setup() {
@@ -141,7 +165,7 @@ void loop() {
         digitalWrite(servoPin, LOW);
       }
 
-      //lightchase_update();
+      lightchase_update();
     }
 
     //deadzones
@@ -174,9 +198,9 @@ void loop() {
     controlMotor(6, 7, backR);
 
   } else {
-    // for (int i = 0; i < NUM_LEDS; i++) {
-    //   leds[i] = CRGB::Red;
-    // } FastLED.show();
+    for (int i = 0; i < NUM_LEDS; i++) {
+      leds[i] = CRGB::Red;
+    } FastLED.show();
 
     Serial.println("Controller not connected");
     controlMotor(0, 1, 0);
@@ -185,9 +209,9 @@ void loop() {
     controlMotor(6, 7, 0);
     delay(250);
 
-    // for (int i = 0; i < NUM_LEDS; i++) {
-    //   leds[i] = CRGB::Black;
-    // } FastLED.show();
+    for (int i = 0; i < NUM_LEDS; i++) {
+      leds[i] = CRGB::Black;
+    } FastLED.show();
 
     delay(250);
   }
