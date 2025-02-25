@@ -1,6 +1,12 @@
+//git commit -a -m "commit message"
+//git push
+
 #include <XboxSeriesXControllerESP32_asukiaaa.hpp>
 #include "esp_task_wdt.h"
 #include "FastLED.h"
+//PID includes
+#include <Wire.h>
+#include "AS5600.h"
 #include "PID_v1.h"
 
 // Motor driver pin definitions
@@ -22,6 +28,16 @@
 
 #define LED_PIN 23
 #define NUM_LEDS 30
+
+#define AS5600_ADDR 0x36
+AS5600 as5600;
+
+// PID Constants
+double Setpoint, Input, Output;
+
+//Specify the links and initial tuning parameters
+double Kp=0.007, Ki=0.15, Kd=0.00001;
+PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 
 int lightchase_last_update = 0;
 int lightchase_update_interval = 100;
@@ -69,6 +85,11 @@ void controlMotor(int channel_f, int channel_b, float speed) {
   }
 }
 
+float mapf(float x, float in_min, float in_max, float out_min, float out_max)
+{
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
 // Xbox controller handling task
 void xboxControllerTask(void *pvParameters) {
   while (true) {
@@ -112,6 +133,14 @@ void setup() {
   // Initialize PWM
   setupPWM();
 
+  myPID.SetMode(AUTOMATIC);
+
+  Wire.begin();
+  as5600.begin(4);
+  as5600.setDirection(AS5600_CLOCK_WISE);
+  Serial.print("AS5600 Address: ");
+  Serial.println(as5600.getAddress());
+
   // Initialize watchdog timer
   esp_task_wdt_init(WDT_TIMEOUT, true);
   esp_task_wdt_add(NULL);
@@ -131,6 +160,9 @@ void setup() {
     0                     // Run on Core 0
   );
 }
+
+//function for getting the speed of the motor manually which is non-blocking
+
 
 void loop() {
   esp_task_wdt_reset();  // Reset watchdog timer
@@ -187,13 +219,23 @@ void loop() {
     float backR = ly_axis - lx_axis + rx_axis; // Back-right wheel
 
     // Constrain values to -1.0 to 1.0
-    frontL = constrain(frontL, -1.0, 1.0);
+    frontL = constrain(frontL, -1.0, 1.0) * 20000;
     frontR = constrain(frontR, -1.0, 1.0);
     backL = constrain(backL, -1.0, 1.0);
     backR = constrain(backR, -1.0, 1.0);
 
+    Setpoint = frontL;
+    Input = getSpeed(); // Built-in function for speed
+    myPID.Compute();
+    float pidOutput = (float)Output / 255.0;
+
+    Serial.print(">Speed:");
+    Serial.print(Input);
+    Serial.print(",Target_Speed:");
+    Serial.println(Setpoint);
+
     // Drive motors using correct channels
-    controlMotor(0, 1, frontL);
+    controlMotor(0, 1, Output);
     controlMotor(2, 3, frontR);
     controlMotor(4, 5, backL);
     controlMotor(6, 7, backR);
