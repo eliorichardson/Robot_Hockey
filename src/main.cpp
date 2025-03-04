@@ -24,7 +24,7 @@
 #define NUM_LEDS 30
 
 // Xbox controller MAC address (replace with your actual address)
-XboxSeriesXControllerESP32_asukiaaa::Core xboxController("EC:83:50:05:71:92");
+XboxSeriesXControllerESP32_asukiaaa::Core xboxController("3C:FA:06:33:53:CE");
 
 //EC:83:50:05:71:92 for xbox one controller
 //0C:35:26:C1:46:6E for xbox series x controller galaxy purple
