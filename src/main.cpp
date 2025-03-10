@@ -1,6 +1,6 @@
 #include <XboxSeriesXControllerESP32_asukiaaa.hpp>
 #include "esp_task_wdt.h"
-//#include "FastLED.h"
+#include "FastLED.h"
 //#include "main.h"
 
 // Motor driver pin definitions
@@ -21,11 +21,15 @@
 #define WDT_TIMEOUT 10  // Watchdog timeout in seconds
 
 #define LED_PIN 23
-#define NUM_LEDS 30
+#define NUM_LEDS 20
+CRGB leds[NUM_LEDS];
+int LED_Shoot = 0;
+
 
 // Xbox controller MAC address (replace with your actual address)
 XboxSeriesXControllerESP32_asukiaaa::Core xboxController("3C:FA:06:33:53:CE");
 
+//3C:FA:06:33:53:CE for xbox custom controller
 //EC:83:50:05:71:92 for xbox one controller
 //0C:35:26:C1:46:6E for xbox series x controller galaxy purple
 
@@ -68,15 +72,36 @@ void controlMotor(int channel_f, int channel_b, float speed) {
 
 // Xbox controller handling task
 void xboxControllerTask(void *pvParameters) {
+  uint8_t Hue = 0; // Initialize hue variable
+
   while (true) {
-    xboxController.onLoop();  // Handle Bluetooth input
     vTaskDelay(10 / portTICK_PERIOD_MS);  // Short delay for stability
+
+    if (LED_Shoot == 1) {
+      for (int i = 0; i < NUM_LEDS; i++) {
+        leds[i] = CRGB::Red;
+      }
+      FastLED.show();
+      delay(500);  // Delay after setting all LEDs to red
+      LED_Shoot = 0;  // Reset the flag after the delay
+    } else {
+      // Show hue effect
+      for (int i = 0; i < NUM_LEDS; i++) {
+        leds[i] = CHSV(Hue, 255, 255);  // Use the hue variable
+      }
+      FastLED.show();
+      Hue++;  // Increment the hue value for a color-changing effect
+      delay(20);  // Adjust the delay for the desired speed of the hue effect
+    }
   }
 }
 
 void setup() {
   Serial.begin(115200);
   Serial.println("Starting ESP32 Controller");
+
+  FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS);
+  FastLED.setBrightness(255);
 
   delay(500);
 
@@ -108,6 +133,9 @@ void setup() {
 }
 
 void loop() {
+
+  xboxController.onLoop();  // Handle Bluetooth input
+
   esp_task_wdt_reset();  // Reset watchdog timer
 
   if (xboxController.isConnected()) {
@@ -122,6 +150,7 @@ void loop() {
       ledcWrite(8, 255);
       digitalWrite(Intake_motor, LOW);
       digitalWrite(Shooter_Pin, HIGH);
+      LED_Shoot = 1;
     } else {
       if (xboxController.xboxNotif.btnRB) {
         digitalWrite(Shooter_Pin, HIGH);
