@@ -139,6 +139,8 @@ void loop() {
   esp_task_wdt_reset();  // Reset watchdog timer
 
   if (xboxController.isConnected()) {
+    float Drive_Multiplier = 1;
+
     float lx_axis = ((float)xboxController.xboxNotif.joyLHori / 32767.0) - 1 ; // Left stick horizontal
     float ly_axis = ((float)xboxController.xboxNotif.joyLVert / 32767.0) - 1; // Left stick vertical
     float rx_axis = (((float)xboxController.xboxNotif.joyRHori / 32767.0) - 1) * 0.35; // Right stick horizontal (rotation)
@@ -153,9 +155,9 @@ void loop() {
       LED_Shoot = 1;
     } else {
       if (xboxController.xboxNotif.btnRB) {
-        digitalWrite(Shooter_Pin, HIGH);
+        Drive_Multiplier = 1.0;
       } else {
-        digitalWrite(Shooter_Pin, LOW);
+        Drive_Multiplier = 0.5;
       }
 
       if (lt_axis > 1) {
@@ -165,12 +167,12 @@ void loop() {
       }
 
       if (xboxController.xboxNotif.btnLB) {
-        digitalWrite(servoPin, HIGH);
+        digitalWrite(Intake_motor2, HIGH);
       } else {
-        digitalWrite(servoPin, LOW);
+        digitalWrite(Intake_motor2, LOW);
       }
 
-      //lightchase_update();
+      digitalWrite(Shooter_Pin, LOW);
     }
 
     //deadzones
@@ -191,10 +193,10 @@ void loop() {
     float backR = ly_axis - lx_axis + rx_axis; // Back-right wheel
 
     // Constrain values to -1.0 to 1.0
-    frontL = constrain(frontL, -1.0, 1.0);
-    frontR = constrain(frontR, -1.0, 1.0);
-    backL = constrain(backL, -1.0, 1.0);
-    backR = constrain(backR, -1.0, 1.0);
+    frontL = constrain(frontL * Drive_Multiplier, -1.0, 1.0);
+    frontR = constrain(frontR * Drive_Multiplier, -1.0, 1.0);
+    backL = constrain(backL * Drive_Multiplier, -1.0, 1.0);
+    backR = constrain(backR * Drive_Multiplier, -1.0, 1.0);
 
     // Drive motors using correct channels
     controlMotor(0, 1, frontL);
