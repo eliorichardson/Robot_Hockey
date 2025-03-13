@@ -4,17 +4,17 @@
 //#include "main.h"
 
 // Motor driver pin definitions
-#define Pin_frontL_f 18
-#define Pin_frontL_b 5
+#define Pin_frontL_f 5
+#define Pin_frontL_b 18
 #define Pin_frontR_f 4
 #define Pin_frontR_b 15
-#define Pin_backL_f 21
-#define Pin_backL_b 19
+#define Pin_backL_f 19
+#define Pin_backL_b 21
 #define Pin_backR_f 16
 #define Pin_backR_b 17
 
-#define Intake_motor 27
-#define Intake_motor2 26
+#define Intake_motor 26
+#define Intake_motor2 27
 #define Shooter_Pin 12
 #define servoPin 14
 
@@ -23,7 +23,9 @@
 #define LED_PIN 22
 #define NUM_LEDS 20
 CRGB leds[NUM_LEDS];
-int LED_Shoot = 0;
+bool LED_Shoot = 0;
+bool xbox_disconnected = 0;
+float Drive_Multiplier = 0;
 
 
 // Xbox controller MAC address (replace with your actual address)
@@ -79,12 +81,42 @@ void xboxControllerTask(void *pvParameters) {
     vTaskDelay(10 / portTICK_PERIOD_MS);  // Short delay for stability
 
     if (LED_Shoot == 1) {
-      for (int i = 0; i < NUM_LEDS; i++) {
-        leds[i] = CRGB::Red;
+      while(LED_Shoot == 1) {
+        for (int i = 0; i < NUM_LEDS; i++) {
+          leds[i] = CRGB::Red;
+        }
+        FastLED.show();
+        delay(500);  // Delay after setting all LEDs to red
+        LED_Shoot = 0;  // Reset the flag after the delay
       }
-      FastLED.show();
-      delay(500);  // Delay after setting all LEDs to red
-      LED_Shoot = 0;  // Reset the flag after the delay
+    } if (xbox_disconnected == 1) {
+        while(xbox_disconnected == 1) {
+          for (int i = 0; i < NUM_LEDS; i++) {
+            leds[i] = CRGB::Red;
+          } FastLED.show();
+
+          delay(250);
+  
+          for (int i = 0; i < NUM_LEDS; i++) {
+            leds[i] = CRGB::Black;
+          } FastLED.show();
+
+          delay(250);
+        }
+    } if(Drive_Multiplier == 1){
+      while (Drive_Multiplier == 1) {
+        for (int i = 0; i < NUM_LEDS; i++) {
+          leds[i] = CRGB::OrangeRed;
+        } FastLED.show();
+  
+        delay(50);
+    
+        for (int i = 0; i < NUM_LEDS; i++) {
+          leds[i] = CRGB::Black;
+        } FastLED.show();
+  
+        delay(50);
+      }
     } else {
       // Show hue effect
       for (int i = 0; i < NUM_LEDS; i++) {
@@ -93,7 +125,7 @@ void xboxControllerTask(void *pvParameters) {
       FastLED.show();
       Hue++;  // Increment the hue value for a color-changing effect
       delay(20);  // Adjust the delay for the desired speed of the hue effect
-    }
+    } 
   }
 }
 
@@ -140,7 +172,7 @@ void loop() {
   esp_task_wdt_reset();  // Reset watchdog timer
 
   if (xboxController.isConnected()) {
-    float Drive_Multiplier = 1;
+    xbox_disconnected = 0;
 
     float lx_axis = ((float)xboxController.xboxNotif.joyLHori / 32767.0) - 1 ; // Left stick horizontal
     float ly_axis = ((float)xboxController.xboxNotif.joyLVert / 32767.0) - 1; // Left stick vertical
@@ -206,9 +238,7 @@ void loop() {
     controlMotor(6, 7, backR);
 
   } else {
-    // for (int i = 0; i < NUM_LEDS; i++) {
-    //   leds[i] = CRGB::Red;
-    // } FastLED.show();
+    xbox_disconnected = 1;
 
     Serial.println("Controller not connected");
     controlMotor(0, 1, 0);
@@ -216,12 +246,7 @@ void loop() {
     controlMotor(4, 5, 0);
     controlMotor(6, 7, 0);
     delay(250);
-
-    // for (int i = 0; i < NUM_LEDS; i++) {
-    //   leds[i] = CRGB::Black;
-    // } FastLED.show();
-
-    delay(250);
+    
   }
   vTaskDelay(20 / portTICK_PERIOD_MS);  // Short delay for stability
 }
