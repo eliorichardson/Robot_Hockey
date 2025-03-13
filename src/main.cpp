@@ -13,23 +13,24 @@
 #define Pin_backR_f 16
 #define Pin_backR_b 17
 
-#define Intake_motor 13
-#define Intake_motor2 27
+#define Intake_motor 27
+#define Intake_motor2 26
 #define Shooter_Pin 12
 #define servoPin 14
 
 #define WDT_TIMEOUT 10  // Watchdog timeout in seconds
 
-#define LED_PIN 23
+#define LED_PIN 22
 #define NUM_LEDS 20
 CRGB leds[NUM_LEDS];
 int LED_Shoot = 0;
 
 
 // Xbox controller MAC address (replace with your actual address)
-XboxSeriesXControllerESP32_asukiaaa::Core xboxController("3C:FA:06:33:53:CE");
+XboxSeriesXControllerESP32_asukiaaa::Core xboxController("3C:FA:06:33:67:63");
 
-//3C:FA:06:33:53:CE for xbox custom controller
+//3C:FA:06:33:67:63 for xbox custom controller black robot
+//3C:FA:06:33:53:CE for xbox custom controller orange robot
 //EC:83:50:05:71:92 for xbox one controller
 //0C:35:26:C1:46:6E for xbox series x controller galaxy purple
 
