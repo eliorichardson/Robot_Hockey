@@ -24,10 +24,12 @@
 #define NUM_LEDS 20
 CRGB leds[NUM_LEDS];
 int LED_Shoot = 0;
+bool xbox_disconnected = 0;
+float Drive_Multiplier = 0;
 
 
 // Xbox controller MAC address (replace with your actual address)
-XboxSeriesXControllerESP32_asukiaaa::Core xboxController("3C:FA:06:33:67:63");
+XboxSeriesXControllerESP32_asukiaaa::Core xboxController("3C:FA:06:33:53:CE");
 
 //3C:FA:06:33:67:63 for xbox custom controller black robot
 //3C:FA:06:33:53:CE for xbox custom controller orange robot
@@ -79,12 +81,40 @@ void xboxControllerTask(void *pvParameters) {
     vTaskDelay(10 / portTICK_PERIOD_MS);  // Short delay for stability
 
     if (LED_Shoot == 1) {
-      for (int i = 0; i < NUM_LEDS; i++) {
-        leds[i] = CRGB::Red;
+      while(LED_Shoot == 1) {
+        for (int i = 0; i < NUM_LEDS; i++) {
+          leds[i] = CRGB::Red;
+        }
+        FastLED.show();
       }
-      FastLED.show();
-      delay(500);  // Delay after setting all LEDs to red
-      LED_Shoot = 0;  // Reset the flag after the delay
+    } if (xbox_disconnected == 1) {
+        while(xbox_disconnected == 1) {
+          for (int i = 0; i < NUM_LEDS; i++) {
+            leds[i] = CRGB::Red;
+          } FastLED.show();
+
+          delay(250);
+  
+          for (int i = 0; i < NUM_LEDS; i++) {
+            leds[i] = CRGB::Black;
+          } FastLED.show();
+
+          delay(250);
+        }
+    } if(Drive_Multiplier == 1){
+      while (Drive_Multiplier == 1) {
+        for (int i = 0; i < NUM_LEDS; i++) {
+          leds[i] = CRGB::OrangeRed;
+        } FastLED.show();
+  
+        delay(50);
+    
+        for (int i = 0; i < NUM_LEDS; i++) {
+          leds[i] = CRGB::Black;
+        } FastLED.show();
+  
+        delay(50);
+      }
     } else {
       // Show hue effect
       for (int i = 0; i < NUM_LEDS; i++) {
@@ -93,7 +123,7 @@ void xboxControllerTask(void *pvParameters) {
       FastLED.show();
       Hue++;  // Increment the hue value for a color-changing effect
       delay(20);  // Adjust the delay for the desired speed of the hue effect
-    }
+    } 
   }
 }
 
@@ -140,7 +170,7 @@ void loop() {
   esp_task_wdt_reset();  // Reset watchdog timer
 
   if (xboxController.isConnected()) {
-    float Drive_Multiplier = 1;
+    xbox_disconnected = 0;
 
     float lx_axis = ((float)xboxController.xboxNotif.joyLHori / 32767.0) - 1 ; // Left stick horizontal
     float ly_axis = ((float)xboxController.xboxNotif.joyLVert / 32767.0) - 1; // Left stick vertical
@@ -172,6 +202,7 @@ void loop() {
       } else {
         digitalWrite(Intake_motor2, LOW);
       }
+      LED_Shoot = 0;
 
       digitalWrite(Shooter_Pin, LOW);
     }
@@ -206,9 +237,7 @@ void loop() {
     controlMotor(6, 7, backR);
 
   } else {
-    // for (int i = 0; i < NUM_LEDS; i++) {
-    //   leds[i] = CRGB::Red;
-    // } FastLED.show();
+    xbox_disconnected = 1;
 
     Serial.println("Controller not connected");
     controlMotor(0, 1, 0);
@@ -216,12 +245,7 @@ void loop() {
     controlMotor(4, 5, 0);
     controlMotor(6, 7, 0);
     delay(250);
-
-    // for (int i = 0; i < NUM_LEDS; i++) {
-    //   leds[i] = CRGB::Black;
-    // } FastLED.show();
-
-    delay(250);
+    
   }
   vTaskDelay(20 / portTICK_PERIOD_MS);  // Short delay for stability
 }
