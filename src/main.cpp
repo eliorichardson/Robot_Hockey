@@ -86,8 +86,6 @@ void xboxControllerTask(void *pvParameters) {
           leds[i] = CRGB::Red;
         }
         FastLED.show();
-        delay(500);  // Delay after setting all LEDs to red
-        LED_Shoot = 0;  // Reset the flag after the delay
       }
     } if (xbox_disconnected == 1) {
         while(xbox_disconnected == 1) {
@@ -205,6 +203,7 @@ void loop() {
         digitalWrite(Intake_motor2, LOW);
       }
 
+      LED_Shoot = 0;
       digitalWrite(Shooter_Pin, LOW);
     }
 
