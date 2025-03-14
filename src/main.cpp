@@ -23,10 +23,6 @@
 #define LED_PIN 22
 #define NUM_LEDS 20
 CRGB leds[NUM_LEDS];
-int LED_Shoot = 0;
-bool xbox_disconnected = 0;
-float Drive_Multiplier = 0;
-
 
 // Xbox controller MAC address (replace with your actual address)
 XboxSeriesXControllerESP32_asukiaaa::Core xboxController("3C:FA:06:33:53:CE");
@@ -36,7 +32,11 @@ XboxSeriesXControllerESP32_asukiaaa::Core xboxController("3C:FA:06:33:53:CE");
 //EC:83:50:05:71:92 for xbox one controller
 //0C:35:26:C1:46:6E for xbox series x controller galaxy purple
 
-//CRGB leds[NUM_LEDS];
+bool LED_Shoot = 0;
+bool xbox_disconnected = 0;
+bool LED_Intake = 0;
+bool LED_Outtake = 0;
+float Drive_Multiplier = 0;
 
 // PWM Setup: Assign a unique channel per pin
 void setupPWM() {
@@ -88,7 +88,6 @@ void xboxControllerTask(void *pvParameters) {
         FastLED.show();
       }
     } if (xbox_disconnected == 1) {
-        while(xbox_disconnected == 1) {
           for (int i = 0; i < NUM_LEDS; i++) {
             leds[i] = CRGB::Red;
           } FastLED.show();
@@ -100,9 +99,7 @@ void xboxControllerTask(void *pvParameters) {
           } FastLED.show();
 
           delay(250);
-        }
-    } if(Drive_Multiplier == 1){
-      while (Drive_Multiplier == 1) {
+    } if(Drive_Multiplier == 1) {
         for (int i = 0; i < NUM_LEDS; i++) {
           leds[i] = CRGB::OrangeRed;
         } FastLED.show();
@@ -114,7 +111,51 @@ void xboxControllerTask(void *pvParameters) {
         } FastLED.show();
   
         delay(50);
-      }
+      
+    } if (LED_Intake == 1) {
+        for (int i = 0; i < NUM_LEDS; i++) {
+          leds[i] = CRGB::Black;
+        } FastLED.show();
+
+        // Chase from both ends to center
+        for (int i = 0; i < NUM_LEDS/2; i++) {
+          if(LED_Intake == 0 || LED_Shoot == 1) break;
+          leds[i] = CRGB::DarkRed;                  // Left side
+          leds[NUM_LEDS-1 - i] = CRGB::DarkRed;    // Right side
+          FastLED.show();
+          delay(50);  // Reduced delay for smoother animation
+        }
+        
+        // Clear from both ends to center
+        for (int i = 0; i < NUM_LEDS/2; i++) {
+          if(LED_Intake == 0 || LED_Shoot == 1) break;
+          leds[i] = CRGB::Black;                    // Left side
+          leds[NUM_LEDS-1 - i] = CRGB::Black;      // Right side
+          FastLED.show();
+          delay(50);  // Reduced delay for smoother animation
+        }
+    } if (LED_Outtake == 1) {
+        for (int i = 0; i < NUM_LEDS; i++) {
+          leds[i] = CRGB::Black;
+        } FastLED.show();
+
+        // Chase from center to both ends
+        for (int i = 0; i < NUM_LEDS/2; i++) {
+          if(LED_Outtake == 0 || LED_Intake == 1 || LED_Shoot == 1) break;
+          leds[NUM_LEDS/2 - i] = CRGB::DarkRed;  // Left side
+          leds[NUM_LEDS/2 + i] = CRGB::DarkRed;  // Right side
+          FastLED.show();
+          delay(50);  // Reduced delay for smoother animation
+        }
+        
+        // Clear from center to both ends
+        for (int i = 0; i < NUM_LEDS/2; i++) {
+          if(LED_Outtake == 0 || LED_Intake == 1 || LED_Shoot == 1) break;
+          leds[NUM_LEDS/2 - i] = CRGB::Black;  // Left side
+          leds[NUM_LEDS/2 + i] = CRGB::Black;  // Right side
+          FastLED.show();
+          delay(50);  // Reduced delay for smoother animation
+        }
     } else {
       // Show hue effect
       for (int i = 0; i < NUM_LEDS; i++) {
@@ -193,17 +234,21 @@ void loop() {
 
       if (lt_axis > 1) {
         digitalWrite(Intake_motor, HIGH);
+        LED_Intake = 1;
       } else {
         digitalWrite(Intake_motor, LOW);
+        LED_Intake = 0;
       }
 
       if (xboxController.xboxNotif.btnLB) {
         digitalWrite(Intake_motor2, HIGH);
+        LED_Outtake = 1;
       } else {
         digitalWrite(Intake_motor2, LOW);
+        LED_Outtake = 0;
       }
-      LED_Shoot = 0;
 
+      LED_Shoot = 0;
       digitalWrite(Shooter_Pin, LOW);
     }
 
